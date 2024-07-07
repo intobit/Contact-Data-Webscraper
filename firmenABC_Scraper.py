@@ -14,6 +14,8 @@ driver = webdriver.Chrome(service=ChromeService(ChromeDriverManager().install())
 
 # Replace with search term of choice
 search_term = 'blume'
+# Filename of txt file which holds email and company name
+filename = 'FirmenABC_EmailsAndCompanyNames.txt'
 
 try:
     driver.get(f'https://www.firmenabc.at/result.aspx?what={search_term}&where=&exact=false&inTitleOnly=false&l=&si=0&iid=&sid=&did=&cc=')
@@ -30,8 +32,6 @@ page_links = pagination.find_elements(By.TAG_NAME, 'li')
 last_page = page_links[-1].find_element(By.TAG_NAME, 'a').get_attribute('href')
 get_number = last_page.split('&si=')[1].split('&iid=')[0]
 
-email_lst = []
-
 for i in range(0, int(get_number) + 1, 50):
     print('#' * 20, 'URLs from ', i, ' --- ', i + 50, '#' * 20)
     try:
@@ -45,7 +45,6 @@ for i in range(0, int(get_number) + 1, 50):
     main_col = driver.find_element(By.CSS_SELECTOR, '#main-container > div > div.col-sm-8.main-col')
     link_list = main_col.find_elements(By.CLASS_NAME, 'bottom-links-item')
 
-    # TODO: Get also Company Name and Name of Company Owner
     url_lst = []
     for e in link_list:
         if e.find_element(By.TAG_NAME, 'a').get_attribute('href') not in url_lst:
@@ -56,16 +55,34 @@ for i in range(0, int(get_number) + 1, 50):
             driver.get(url)
             wait = WebDriverWait(driver, 20)
             wait.until(EC.presence_of_element_located((By.CSS_SELECTOR, '#main-container > div > div.col-sm-8.main-col')))
-
+            # Get email
             main_col = driver.find_element(By.CSS_SELECTOR, '#main-container > div > div.col-sm-8.main-col')
             mailto_link = main_col.find_element(By.CSS_SELECTOR, 'a[href^="mailto:"]').get_attribute('href')
             email = mailto_link.split('mailto:')[1].split('?')[0]
             decoded_email = unquote(email)
-            email_lst.append(decoded_email)
-            print(decoded_email)
+            # Get company name and city
+            company_name = main_col.find_element(By.CLASS_NAME, 'info')
+            # Final string
+            final_str = decoded_email + ", " + company_name.text
+
+            print(final_str)
+
+            # Write data directly to file
+            try:
+                with open(filename, 'r') as file:
+                    existing_content = file.read()
+            except FileNotFoundError:
+                existing_content = ""
+
+            if final_str not in existing_content:
+                with open(filename, 'a') as file:
+                    file.write(final_str + "\n")
+                print(f"Write {final_str} to {filename}.")
+            else:
+                print(f"ALREADY EXISTS: {final_str} already exits in {filename}.")
+
         except Exception as e:
             print(f"ERROR: An unexpected error occurred: {e}")
             continue
 
-print(email_lst)
 driver.quit()
